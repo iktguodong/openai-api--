@@ -46,9 +46,9 @@ def index():
         try:
             # 请求 OpenAI API 获取回应
             completion = openai.ChatCompletion.create(
-                model="gpt-4",  # 使用的模型
+                model="gpt-4o",  # 使用的模型
                 messages=session["messages"],  # 提供当前对话历史
-                max_tokens=150,  # 设置最大生成令牌数
+                max_tokens=500,  # 设置最大生成令牌数
                 temperature=0.7,  # 设置生成文本的创新性（温度）
                 top_p=1.0  # 设置核采样的累积概率阈值
             )
