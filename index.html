@@ -83,6 +83,7 @@
         .conversation .assistant {
             background-color: #f1f8e9;
             border-left-color: #8bc34a;
+            white-space: pre-line; /* 保持换行 */
         }
         .new-session-btn {
             margin-top: 20px;
@@ -106,22 +107,28 @@
 </head>
 <body>
     <div class="container">
-        <h1>AI-Chat</h1>
+        <h1>AI Chat</h1>
         <form id="chatForm" method="POST">
             <label for="user_input">你:</label>
-            <input type="text" id="user_input" name="user_input" required>
+            <input type="text" id="user_input" name="user_input">
             <button type="submit">发送</button>
         </form>
 
         <div class="conversation">
             {% for message in messages %}
-                <div class="message {% if message.role == 'user' %}user{% else %}assistant{% endif %}">
-                    <strong>{{ message.role == 'user' and '你' or '助手' }}:</strong> {{ message.content | safe }}
-                </div>
+                {% if message.role == 'user' %}
+                    <div class="message user">
+                        <strong>你:</strong> {{ message.content | safe }}
+                    </div>
+                {% elif message.role == 'assistant' %}
+                    <div class="message assistant">
+                        <strong>助手:</strong> {{ message.content | safe }}
+                    </div>
+                {% endif %}
             {% endfor %}
         </div>
 
-        <h2>所有会话历史</h2>
+        <h2>会话历史</h2>
         <pre class="conversation" style="flex-direction: column;">{{ chat_history | safe }}</pre>
 
         <form action="{{ url_for('new_session') }}" method="get">
