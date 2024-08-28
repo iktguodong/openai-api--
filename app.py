@@ -20,16 +20,23 @@ def save_chat_history(messages):
         f.write("\n")  # 添加空行分隔每个会话
 
 def load_chat_history():
-    """加载所有会话内容"""
+    """加载所有会话内容，按从旧到新的顺序显示，并排除当前会话"""
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, "r") as f:
-            return f.read()
+            chat_history = f.read().strip().split("\n\n")  # 每个会话用双换行分隔
+            if len(chat_history) > 1:
+                # 将会话按正序排列（旧到新），排除最新的会话
+                return "\n\n".join(chat_history[:-1])
+            else:
+                # 只有一条历史记录时，不显示内容
+                return ""
     return ""
 
 def clean_response(text):
-    """清除 ** 号并在序号后换行"""
+    """清除 ** 号并在序号后无空行"""
     text = re.sub(r'\*\*', '', text)  # 去除 ** 号
-    text = re.sub(r'(\d+\.)\s*', r'\1\n', text)  # 在序号后添加换行符
+    # 在序号后紧跟内容，不添加额外的换行符
+    text = re.sub(r'(\d+\.)\s*', r'\1 ', text)
     return text
 
 @app.route("/", methods=["GET", "POST"])
@@ -38,37 +45,38 @@ def index():
         session["messages"] = [{"role": "system", "content": "You are a helpful assistant."}]
 
     if request.method == "POST":
-        user_input = request.form["user_input"]
+        user_input = request.form.get("user_input")
 
-        # 添加用户消息到对话历史
-        session["messages"].append({"role": "user", "content": user_input})
+        if user_input:
+            # 添加用户消息到对话历史
+            session["messages"].append({"role": "user", "content": user_input})
 
-        try:
-            # 请求 OpenAI API 获取回应
-            completion = openai.ChatCompletion.create(
-                model="gpt-4o",  # 使用的模型
-                messages=session["messages"],  # 提供当前对话历史
-                max_tokens=500,  # 设置最大生成令牌数
-                temperature=0.7,  # 设置生成文本的创新性（温度）
-                top_p=1.0  # 设置核采样的累积概率阈值
-            )
+            try:
+                # 请求 OpenAI API 获取回应
+                completion = openai.ChatCompletion.create(
+                    model="gpt-4o",  # 使用的模型
+                    messages=session["messages"],  # 提供当前对话历史
+                    max_tokens=550,  # 设置最大生成令牌数
+                    temperature=0.7,  # 设置生成文本的创新性（温度）
+                    top_p=1.0  # 设置核采样的累积概率阈值
+                )
 
-            # 获取 AI 的回应
-            assistant_response = completion.choices[0].message["content"].strip()
+                # 获取 AI 的回应
+                assistant_response = completion.choices[0].message["content"].strip()
 
-            # 清理返回的文本
-            assistant_response = clean_response(assistant_response)
+                # 清理返回的文本
+                assistant_response = clean_response(assistant_response)
 
-            # 将 AI 的回应添加到对话历史
-            session["messages"].append({"role": "assistant", "content": assistant_response})
+                # 将 AI 的回应添加到对话历史
+                session["messages"].append({"role": "assistant", "content": assistant_response})
 
-            # 保存会话内容，包括当前问题和答案
-            save_chat_history(session["messages"])
+                # 保存会话内容，包括当前问题和答案
+                save_chat_history(session["messages"])
 
-        except openai.error.OpenAIError as e:
-            assistant_response = f"An OpenAI error occurred: {e}"
-        except Exception as e:
-            assistant_response = f"An unexpected error occurred: {e}"
+            except openai.error.OpenAIError as e:
+                assistant_response = f"An OpenAI error occurred: {e}"
+            except Exception as e:
+                assistant_response = f"An unexpected error occurred: {e}"
 
     chat_history = load_chat_history()
     return render_template("index.html", messages=session["messages"][1:], chat_history=chat_history)
